@@ -204,7 +204,7 @@
     <div class="card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
       <div class="head"><span id="sheetTitle">Ajustes</span><button class="btn" id="closeBtn" type="button">Fechar</button></div>
       <div id="fields"></div>
-      <div class="ver" id="ver">Albert Clock v1.1.0 · 08/10/2026</div>
+      <div class="ver" id="ver">Albert Clock v1.2.0 · 08/10/2026</div>
     </div>
   </div>
 
@@ -476,7 +476,27 @@
   let shownKey = "", hoursText = "", minsText = "", timer = 0;
 
   const isNight = (hour) => S.bright === "night" || (S.bright === "auto" && (hour >= 22 || hour < 7));
-  const render = () => { renderRow(hoursCells, hoursText); renderRow(minsCells, minsText); };
+  const render = () => { if (!peeking) { renderRow(hoursCells, hoursText); renderRow(minsCells, minsText); } };
+
+  // Toque no relógio: mostra a hora normal (HH:MM) por alguns segundos e volta para a conta
+  const PEEK_MS = 5000;
+  let peeking = false, peekTimer = 0;
+  function endPeek() {
+    clearTimeout(peekTimer);
+    if (!peeking) return;
+    peeking = false;
+    render();
+  }
+  function peekTime() {
+    if (S.level === 0 || sheet.classList.contains("open")) return;   // nível 0 já mostra a hora
+    const now = new Date(), H = now.getHours();
+    const hv = S.h24 ? H : (H % 12 || 12);
+    peeking = true;
+    renderRow(hoursCells, String(hv));
+    renderRow(minsCells, String(now.getMinutes()).padStart(2, "0"));
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(endPeek, PEEK_MS);
+  }
 
   function update() {
     const now = new Date();
@@ -634,8 +654,9 @@
   });
 
   const sheet = $("sheet");
-  function openSheet() { refreshFields(); sheet.classList.add("open"); revealUI(); $("closeBtn").focus({ preventScroll: true }); }
+  function openSheet() { endPeek(); refreshFields(); sheet.classList.add("open"); revealUI(); $("closeBtn").focus({ preventScroll: true }); }
   function closeSheet() { sheet.classList.remove("open"); revealUI(); }
+  face.addEventListener("click", peekTime);
   $("settingsBtn").addEventListener("click", openSheet);
   $("closeBtn").addEventListener("click", closeSheet);
   sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });

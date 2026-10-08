@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 1.2.0 — 08/10/2026
+- Toque no relógio mostra a hora normal (HH:MM) por 5 segundos e volta para a conta. Respeita 12/24 h; no nível 0 não muda nada.
+
 ## 1.1.0 — 08/10/2026
 - Versão exibida no rodapé de Ajustes.
 - Cache offline passa a ser nomeado pela versão.
