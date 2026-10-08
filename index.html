@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Albert Clock" />
+<meta name="theme-color" content="#0b0b0c" />
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" href="icon-192.png" />
+<link rel="manifest" href="manifest.webmanifest" />
+<title>Albert Clock</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0b0c;
+    --f1: #9b1c24; --f2: #8a141e;     /* cor da frente (muda em Ajustes) */
+    --tex: 0.3;                       /* intensidade da textura (escovado ou madeira) */
+    --led: #fffaf6;
+    --pill: rgba(10,10,11,0.74);
+    --pill-line: rgba(255,255,255,0.16);
+    --fw: min(94vw, calc(94vh * 2.06));   /* largura da frente do relógio */
+    box-sizing: border-box;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+             env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  }
+  @supports (height: 100dvh) { :root { --fw: min(94vw, calc(94dvh * 2.06)); } }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); overflow: hidden;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent; overscroll-behavior: none; touch-action: manipulation;
+  }
+
+  .stage { height: 100%; display: flex; align-items: center; justify-content: center; }
+
+  /* Frente do relógio: proporção e posições medidas na foto do original */
+  .face {
+    position: relative; overflow: hidden;
+    width: var(--fw); aspect-ratio: 2.06 / 1;
+    padding: 2.2% 3% 2.2% 3.4%;
+    display: grid; grid-template-rows: 1fr 1fr; row-gap: 7%;
+    border-radius: 0.5% / 1%;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.10)),
+      linear-gradient(135deg, var(--f1), var(--f2));
+    box-shadow:
+      0 2.5vmin 6vmin rgba(0,0,0,0.65),
+      inset 0 0 0 1px rgba(255,255,255,0.07),
+      inset 0 2px 0 rgba(255,255,255,0.20),
+      inset 3px 0 0 rgba(0,0,0,0.22);
+  }
+  /* Texturas: só a que está em uso é desenhada */
+  .face::before, .face::after { content: ""; position: absolute; inset: 0; pointer-events: none; display: none; opacity: var(--tex); }
+  html[data-tex="brushed"] .face::before { display: block; mix-blend-mode: overlay;  background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27800%27%20height%3D%27400%27%3E%3Cfilter%20id%3D%27b%27%20x%3D%270%27%20y%3D%270%27%20width%3D%27100%25%27%20height%3D%27100%25%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.0006%200.8%27%20numOctaves%3D%272%27%20seed%3D%273%27%20stitchTiles%3D%27stitch%27%2F%3E%3CfeColorMatrix%20values%3D%271%200%200%200%200%20%201%200%200%200%200%20%201%200%200%200%200%20%200%200%200%200%201%27%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%27100%25%27%20height%3D%27100%25%27%20filter%3D%27url%28%23b%29%27%2F%3E%3C%2Fsvg%3E") 0 0 / 800px 400px; }
+  html[data-tex="wood"]    .face::after  { display: block; mix-blend-mode: multiply; background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27900%27%20height%3D%27600%27%3E%3Cfilter%20id%3D%27w%27%20x%3D%270%27%20y%3D%270%27%20width%3D%27100%25%27%20height%3D%27100%25%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.004%200.28%27%20numOctaves%3D%274%27%20seed%3D%277%27%20stitchTiles%3D%27stitch%27%2F%3E%3CfeColorMatrix%20values%3D%270%200%200%200%200.12%20%200%200%200%200%200.06%20%200%200%200%200%200.02%20%200%200%200%202.4%20-0.85%27%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%27100%25%27%20height%3D%27100%25%27%20filter%3D%27url%28%23w%29%27%2F%3E%3C%2Fsvg%3E") 0 0 / 900px 600px; }
+
+  .row {
+    position: relative; z-index: 1; min-height: 0; align-items: center;
+    display: grid; grid-template-columns: 73.2% minmax(0, 1fr); column-gap: 6.5%;
+  }
+  .exprGrid { height: 100%; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: 4.55%; }
+  .cell { min-width: 0; min-height: 0; }
+  .cell svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+  /* Cada segmento é um rebaixo na frente. Apagado: fundo sombreado. Aceso: LED branco com brilho. */
+  .offs polygon { fill: url(#trough); stroke: rgba(255,255,255,0.13); stroke-width: 0.6; stroke-linejoin: round; }
+  .ons polygon  { fill: var(--led); }
+  .ons { transition: opacity 600ms ease; }
+
+  .unit {
+    color: var(--led); text-align: left; line-height: 1;
+    font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    font-weight: 500; letter-spacing: 0.005em;
+    font-size: calc(var(--fw) * 0.105);
+    text-shadow: 0 0 2px rgba(255,236,226,0.85), 0 0 8px rgba(255,225,215,0.3);
+    transition: opacity 600ms ease;
+  }
+
+  /* Modo noite: LEDs atenuados */
+  body.night .ons { opacity: 0.3; filter: none; }
+  body.night .unit { opacity: 0.3; text-shadow: none; }
+
+  /* Barra superior (some sozinha) */
+  .topbar {
+    position: fixed; z-index: 5; pointer-events: none;
+    top: calc(env(safe-area-inset-top, 0px) + 20px);
+    left: calc(env(safe-area-inset-left, 0px) + 26px);
+    right: calc(env(safe-area-inset-right, 0px) + 26px);
+    display: flex; align-items: center; justify-content: space-between;
+    opacity: 0; transition: opacity 400ms ease;
+    font-family: -apple-system, system-ui, "Helvetica Neue", Arial, sans-serif;
+  }
+  body.show-ui .topbar { opacity: 1; }
+  body.show-ui .topbar .btn { pointer-events: auto; }
+  .group { display: flex; gap: 10px; align-items: center; }
+  .pill, .btn {
+    color: #fff; font: inherit; font-weight: 700; font-size: 16px;
+    padding: 10px 18px; border-radius: 999px; background: var(--pill); border: 1px solid var(--pill-line);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  .pill.dim { color: rgba(255,255,255,0.6); }
+  .btn { appearance: none; -webkit-appearance: none; cursor: pointer; min-height: 44px; }
+  .btn:active { transform: scale(0.97); }
+
+  /* Painel de ajustes (fechado = invisível e fora do foco do teclado) */
+  .sheet {
+    position: fixed; inset: 0; z-index: 10; display: flex; justify-content: flex-end;
+    background: rgba(0,0,0,0.45); opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 250ms ease, visibility 0s linear 250ms;
+    font-family: -apple-system, system-ui, "Helvetica Neue", Arial, sans-serif;
+  }
+  .sheet.open { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+  .card {
+    width: min(460px, 92vw); height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; color: #fff;
+    background: rgba(22,22,24,0.94); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+    border-left: 1px solid rgba(255,255,255,0.1);
+    padding: calc(env(safe-area-inset-top, 0px) + 22px) calc(env(safe-area-inset-right, 0px) + 22px)
+             calc(env(safe-area-inset-bottom, 0px) + 22px) 22px;
+    transform: translateX(24px); transition: transform 250ms ease;
+  }
+  .sheet.open .card { transform: none; }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; font-size: 22px; font-weight: 800; }
+  .field { margin: 0 0 22px; }
+  .label { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .hint { font-size: 13px; color: rgba(255,255,255,0.55); margin-bottom: 8px; min-height: 16px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .opt {
+    appearance: none; -webkit-appearance: none; flex: 1 1 0; min-width: 44px; min-height: 48px; padding: 8px 12px;
+    border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.07);
+    color: #fff; font: inherit; font-weight: 700; font-size: 16px; cursor: pointer;
+  }
+  .opts.cols2 .opt { flex: 1 1 calc(50% - 4px); min-width: 0; white-space: nowrap; }
+  .opt[aria-pressed="true"] { background: #fff; color: #000; border-color: #fff; }
+
+  /* Nível e Velocidade: rótulo à esquerda e seletor "− valor +" (como no site do original) */
+  .steprow { display: flex; align-items: center; gap: 18px; }
+  .steplabel { flex: 0 0 112px; margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+  .stepper { flex: 1; display: grid; grid-template-columns: 1fr 1px 1.5fr 1px 1fr; align-items: center; height: 60px; border-radius: 20px; background: #222224; }
+  .stepbtn { appearance: none; -webkit-appearance: none; background: none; border: 0; padding: 0; height: 100%; color: #fff; font: inherit; font-size: 28px; line-height: 1; cursor: pointer; border-radius: 20px; }
+  .stepbtn:active:not(:disabled) { background: rgba(255,255,255,0.08); }
+  .stepbtn:disabled { color: rgba(255,255,255,0.28); cursor: default; }
+  .stepsep { width: 1px; height: 50%; background: rgba(255,255,255,0.18); }
+  .stepval { text-align: center; font-size: 24px; font-weight: 700; color: #fff; }
+  .stepfield .hint { margin: 8px 0 0; }
+  .rules { margin-top: 10px; font-size: 13px; color: rgba(255,255,255,0.6); }
+  .rules summary { cursor: pointer; padding: 6px 0; list-style: none; -webkit-tap-highlight-color: transparent; }
+  .rules summary::-webkit-details-marker { display: none; }
+  .rules summary::before { content: "›"; display: inline-block; width: 1em; transition: transform 150ms ease; }
+  .rules[open] summary::before { transform: rotate(90deg); }
+  .rules ul { margin: 2px 0 0; padding: 0 0 0 1.4em; line-height: 1.5; }
+  .rules li { margin: 2px 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0s !important; transition-delay: 0s !important; }
+  }
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="trough" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#000" stop-opacity="0.50"/>
+        <stop offset="0.55" stop-color="#000" stop-opacity="0.26"/>
+        <stop offset="1" stop-color="#000" stop-opacity="0.10"/>
+      </linearGradient>
+      <!-- Brilho do LED: um filtro por posição (e não um por segmento) -->
+      <filter id="glow" x="-30%" y="-20%" width="160%" height="140%" color-interpolation-filters="sRGB">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="1.1" result="near"/>
+        <feGaussianBlur in="SourceGraphic" stdDeviation="3.4" result="far"/>
+        <feColorMatrix in="far" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.6 0" result="far2"/>
+        <feMerge><feMergeNode in="far2"/><feMergeNode in="near"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+  </svg>
+
+  <noscript>Ative o JavaScript para ver o relógio.</noscript>
+
+  <div class="stage">
+    <div class="face" id="face" role="img" aria-label="Albert Clock">
+      <div class="row">
+        <div class="exprGrid" id="hoursGrid"></div>
+        <div class="unit">h</div>
+      </div>
+      <div class="row">
+        <div class="exprGrid" id="minsGrid"></div>
+        <div class="unit">min</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="pill">Albert Clock</div>
+    <div class="group">
+      <div class="pill dim" id="lockLabel" hidden>Tela ligada</div>
+      <button class="btn" id="settingsBtn" type="button">Ajustes</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet">
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="head"><span id="sheetTitle">Ajustes</span><button class="btn" id="closeBtn" type="button">Fechar</button></div>
+      <div id="fields"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+
+  /* ---------- Cores (medidas nas fotos do site; madeira do modelo Original; Black = alumínio preto) ---------- */
+  const FINISHES = [
+    { name: "Scarlett", f1: "#9b1c24", f2: "#8a141e", tex: "brushed", amount: 0.30 },
+    { name: "Slate",    f1: "#5c5b56", f2: "#4c4b47", tex: "brushed", amount: 0.30 },
+    { name: "Goldie",   f1: "#cfa457", f2: "#b48a48", tex: "brushed", amount: 0.30 },
+    { name: "Nogueira", f1: "#4f3424", f2: "#432b1d", tex: "wood",    amount: 0.55 },
+    { name: "Carvalho", f1: "#ad7d4d", f2: "#9d6f42", tex: "wood",    amount: 0.50 },
+    { name: "Black",    f1: "#2b2b2d", f2: "#1a1a1b", tex: "brushed", amount: 0.28 }
+  ];
+
+  /* ---------- Configurações (salvas no aparelho, sempre validadas) ---------- */
+  const KEY = "albert_clock_settings_v6";
+  const LEGACY_KEYS = ["albert_clock_settings_v5", "albert_clock_settings_v4", "albert_clock_settings_v3", "albert_clock_settings_v2"];
+  const DEFAULTS = { level: 4, speed: 1, h24: true, div: "/", bright: "auto", finish: 5 };
+
+  const intIn = (v, lo, hi, fallback) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= lo && n <= hi ? n : fallback;
+  };
+  function sanitize(o) {
+    o = o && typeof o === "object" ? o : {};
+    return {
+      level:  intIn(o.level, 0, 6, DEFAULTS.level),
+      speed:  intIn(o.speed, 1, 6, DEFAULTS.speed),
+      h24:    typeof o.h24 === "boolean" ? o.h24 : DEFAULTS.h24,
+      div:    o.div === ":" ? ":" : "/",
+      bright: ["auto", "day", "night"].includes(o.bright) ? o.bright : "auto",
+      finish: intIn(o.finish, 0, FINISHES.length - 1, DEFAULTS.finish)
+    };
+  }
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) return sanitize(JSON.parse(raw));
+      // migra a configuração de versões antigas (a cor é reiniciada), grava na chave nova e só então apaga as velhas
+      let found = null;
+      for (const k of LEGACY_KEYS) {
+        const v = found ? null : localStorage.getItem(k);
+        if (v) found = JSON.parse(v);
+      }
+      if (found) {
+        delete found.finish;
+        const migrated = sanitize(found);
+        localStorage.setItem(KEY, JSON.stringify(migrated));
+        LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
+        return migrated;
+      }
+    } catch { /* armazenamento indisponível ou corrompido: usa o padrão */ }
+    return sanitize(null);
+  }
+  const S = loadSettings();
+  const saveSettings = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* ignora */ } };
+
+  /* ---------- Geração de expressões ----------
+     Nível 0: hora normal. 1-3: dois termos. 4-6: três termos. */
+  const LEVELS = {
+    1: { ops: "+-",   terms: 2, base: 9 },
+    2: { ops: "+-x",  terms: 2, base: 20 },
+    3: { ops: "+-x/", terms: 2, base: 99 },
+    4: { ops: "+-",   terms: 3 },
+    5: { ops: "+-x",  terms: 3 },
+    6: { ops: "+-x/", terms: 3 }
+  };
+
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  function choose(strs, avoid) {
+    if (!strs.length) return null;
+    const others = strs.filter((s) => s !== avoid);
+    return pick(others.length ? others : strs);
+  }
+  function applyOp(a, op, b) {
+    switch (op) {
+      case "+": return a + b;
+      case "-": return a - b;
+      case "x": return a * b;
+      case "/": return b !== 0 && a % b === 0 ? a / b : null;
+      default:  return null;
+    }
+  }
+  const prec = (op) => (op === "x" || op === "/" ? 2 : 1);
+  function eval3(a, o1, b, o2, c) {
+    let first, v;
+    if (prec(o2) > prec(o1)) { first = applyOp(b, o2, c); if (first === null) return null; v = applyOp(a, o1, first); }
+    else                     { first = applyOp(a, o1, b); if (first === null) return null; v = applyOp(first, o2, c); }
+    return v === null || first < 0 ? null : v;
+  }
+  const lengthOk = (s) => s.length >= 3 && s.length <= 5;
+
+  // Todas as contas de 2 termos; cada item = { s: texto, o: operadores usados }
+  function pool2(cfg, target) {
+    const M = Math.max(cfg.base || 99, target), all = [], strict = [];
+    for (let a = 1; a <= M; a++) {
+      for (let b = 1; b <= M; b++) {
+        for (const op of cfg.ops) {
+          if (applyOp(a, op, b) !== target) continue;
+          const s = `${a}${op}${b}`;
+          if (!lengthOk(s)) continue;
+          all.push({ s, o: op });
+          const trivial = (op === "x" && (a === 1 || b === 1)) || (op === "/" && b === 1);
+          if (!trivial) strict.push({ s, o: op });
+        }
+      }
+    }
+    return strict.length ? strict : all;
+  }
+  // Todas as contas de 3 termos (só algarismos únicos, cabem em 5 posições)
+  function pool3(cfg, target) {
+    const all = [], strict = [];
+    for (let a = 0; a <= 9; a++) {
+      for (let b = 0; b <= 9; b++) {
+        for (let c = 0; c <= 9; c++) {
+          for (const o1 of cfg.ops) {
+            for (const o2 of cfg.ops) {
+              if (eval3(a, o1, b, o2, c) !== target) continue;
+              const it = { s: `${a}${o1}${b}${o2}${c}`, o: o1 + o2 };
+              all.push(it);
+              const trivial1 = (o1 === "x" || o1 === "/") && (b === 1 || (o1 === "x" && a === 1));
+              const trivial2 = (o2 === "x" || o2 === "/") && (c === 1 || (o2 === "x" && b === 1));
+              if (a > 0 && b > 0 && c > 0 && !trivial1 && !trivial2) strict.push(it);
+            }
+          }
+        }
+      }
+    }
+    return strict.length ? strict : all;
+  }
+  const withOp = (items, op) => items.filter((it) => it.o.includes(op)).map((it) => it.s);
+
+  // Para cada operador do nível, a lista de contas candidatas (calculada uma vez por nível e horário)
+  const poolCache = new Map();
+  function candidatesByOp(level, target) {
+    const key = level * 100 + target;
+    let byOp = poolCache.get(key);
+    if (byOp) return byOp;
+    const cfg = LEVELS[level];
+    const p2 = pool2(cfg, target);
+    const p3 = cfg.terms === 3 ? pool3(cfg, target) : [];
+    byOp = {};
+    for (const op of cfg.ops) {
+      const s2 = withOp(p2, op);
+      let s3 = withOp(p3, op);
+      if (!s2.length && !s3.length) continue;
+      if (op !== "x") {
+        // evita que o "x" venha de carona nas contas de + - /
+        const clean = p3.filter((it) => it.o.includes(op) && !it.o.includes("x")).map((it) => it.s);
+        s3 = clean.length ? clean : (s2.length ? [] : s3);
+      }
+      byOp[op] = s3.length ? s3 : s2;
+    }
+    poolCache.set(key, byOp);
+    return byOp;
+  }
+
+  // Sorteia o operador primeiro (todos do nível com a mesma chance); se ele não couber numa
+  // conta de 3 termos para esse horário, usa uma de 2 termos.
+  function generate(level, target, avoid) {
+    const byOp = candidatesByOp(level, target);
+    let ops = Object.keys(byOp);
+    const fresh = ops.filter((op) => byOp[op].some((s) => s !== avoid));   // evita repetir a conta anterior
+    if (fresh.length) ops = fresh;
+    return (ops.length && choose(byOp[pick(ops)], avoid)) || `${target}+0`;
+  }
+
+  /* ---------- Display de 15 segmentos (formato idêntico ao print do site do Albert Clock) ----------
+     Anel: a b c d e f · Meio: g1 ce g2 · Hastes: j l · Diagonais: h i k m */
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const svgEl = (tag, attrs = {}) => {
+    const n = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  };
+
+  const SEG = {
+    a: "7.1,5.4 20.8,19.9 25.4,19.9 25.9,19.3 30.5,19.3 31.0,18.8 37.6,18.8 38.1,18.2 61.9,18.2 62.4,18.8 69.0,18.8 69.5,19.3 78.7,19.9 92.4,5.4 89.8,3.8 84.8,3.2 84.3,2.7 81.2,2.7 80.7,2.1 77.7,2.1 77.2,1.6 73.1,1.6 72.6,1.1 67.5,1.1 67.0,0.5 59.9,0.5 59.4,0.0 40.1,0.0 39.6,0.5 32.0,0.5 31.5,1.1 26.9,1.1 26.4,1.6 22.3,1.6 21.8,2.1 18.8,2.1 18.3,2.7 12.2,3.2 11.7,3.8 8.6,4.3",
+    b: "94.4,8.0 80.7,22.5 80.7,27.9 81.2,28.4 81.2,33.8 81.7,34.3 81.7,41.3 82.2,41.9 82.2,49.9 82.7,50.4 83.2,77.8 83.8,78.4 83.8,80.0 91.9,89.1 97.5,83.2 99.5,80.0 99.5,67.1 99.0,66.5 99.0,54.2 98.5,53.7 98.0,37.6 97.5,37.0 97.5,30.6 97.0,30.1 97.0,25.2 96.4,24.7 96.4,19.9 95.9,19.3 95.4,10.2",
+    c: "91.9,93.9 84.3,102.0 83.8,103.0 83.8,105.2 83.2,105.7 83.2,121.3 82.7,121.8 82.7,132.0 82.2,132.6 82.2,141.1 81.7,141.7 81.7,148.1 81.2,148.7 80.7,160.5 93.9,174.4 94.4,174.4 95.4,172.3 95.9,163.7 96.4,163.1 96.4,158.3 97.0,157.8 97.0,152.4 97.5,151.9 97.5,145.4 98.0,144.9 98.5,129.3 99.0,128.8 99.0,116.5 99.5,115.9 99.5,102.5 99.0,101.4",
+    d: "7.6,176.6 7.6,177.6 8.1,178.2 10.7,178.7 11.2,179.2 13.7,179.2 14.2,179.8 16.8,179.8 17.3,180.3 20.3,180.3 20.8,180.9 24.4,180.9 24.9,181.4 35.5,181.9 36.0,182.5 63.5,182.5 64.0,181.9 70.1,181.9 70.6,181.4 79.2,180.9 79.7,180.3 88.3,179.2 88.8,178.7 90.4,178.7 92.4,177.1 78.7,162.6 71.6,163.1 71.1,163.7 66.5,163.7 66.0,164.2 57.4,164.2 56.9,164.8 42.6,164.8 42.1,164.2 34.0,164.2 33.5,163.7 28.4,163.7 27.9,163.1 20.8,162.6",
+    e: "8.1,93.9 7.6,93.9 1.5,100.4 0.0,103.0 0.0,113.8 0.5,114.3 0.5,127.2 1.0,127.7 1.5,143.3 2.0,143.8 2.0,150.3 2.5,150.8 2.5,156.7 3.0,157.2 3.6,167.4 4.1,168.0 4.1,171.7 5.1,174.4 5.6,174.4 18.8,160.5 18.8,154.0 18.3,153.5 17.8,140.1 17.3,139.5 17.3,131.5 16.8,130.9 16.2,103.6",
+    f: "5.1,8.0 4.6,10.7 4.1,11.3 4.1,15.6 3.6,16.1 3.6,20.4 3.0,20.9 3.0,25.8 2.5,26.3 2.5,31.7 2.0,32.2 2.0,38.6 1.5,39.2 1.0,56.3 0.5,56.9 0.5,70.8 0.0,71.4 0.0,79.4 0.5,80.0 0.5,81.0 7.6,89.1 16.2,79.4 16.8,52.1 17.3,51.5 17.3,42.9 17.8,42.4 17.8,35.4 18.3,34.9 18.8,22.5",
+    g1: "10.2,91.2 10.2,91.8 17.3,99.8 38.6,99.8 38.6,83.2 17.3,83.2",
+    g2: "60.9,83.2 60.9,99.8 82.2,99.8 89.3,91.8 89.3,90.7 82.2,83.2",
+    j: "50.0,49.4 57.9,56.9 57.9,79.4 42.1,79.4 42.1,56.9",
+    l: "42.1,103.0 57.9,103.0 57.9,125.6 50.0,133.1 42.1,125.6",
+    ce: "41.6,83.2 41.6,99.3 42.1,99.8 57.9,99.8 57.9,83.2",
+    h: "20.5,59.6 31.5,59.6 39.1,67.4 39.1,79.4 27.4,79.4 20.3,71.9",
+    i: "79.7,59.6 68.5,59.6 61.4,67.2 61.4,79.4 73.1,79.4 80.2,71.9",
+    k: "20.5,122.9 31.5,122.9 39.1,115.1 39.1,103.1 27.4,103.1 20.3,110.6",
+    m: "79.7,122.9 68.5,122.9 61.4,115.3 61.4,103.1 73.1,103.1 80.2,110.6"
+  };
+  const KEYS = Object.keys(SEG);
+
+  // A barra do meio é g1 + ce + g2 (o quadrado central acende junto)
+  const GLYPH = {
+    "0": ["a", "b", "c", "d", "e", "f"],
+    "1": ["b", "c"],
+    "2": ["a", "b", "g1", "ce", "g2", "e", "d"],
+    "3": ["a", "b", "c", "d", "g1", "ce", "g2"],
+    "4": ["f", "b", "c", "g1", "ce", "g2"],
+    "5": ["a", "f", "c", "d", "g1", "ce", "g2"],
+    "6": ["a", "f", "e", "c", "d", "g1", "ce", "g2"],
+    "7": ["a", "b", "c"],
+    "8": ["a", "b", "c", "d", "e", "f", "g1", "ce", "g2"],
+    "9": ["a", "b", "c", "d", "f", "g1", "ce", "g2"],
+    "+": ["g1", "ce", "g2", "j", "l"],
+    "-": ["g1", "ce", "g2"],
+    "x": ["h", "i", "k", "m", "ce"],
+    "/": ["i", "ce", "k"],
+    ":": ["j", "l"]
+  };
+
+  // Cada posição é criada uma única vez; trocar o caractere só move polígonos entre o grupo
+  // "apagado" e o grupo "aceso" (que leva o filtro de brilho).
+  function createCell() {
+    const el = document.createElement("div");
+    el.className = "cell";
+    const svg = svgEl("svg", { viewBox: "0 0 100 183" });
+    const offs = svgEl("g", { class: "offs" });
+    const ons = svgEl("g", { class: "ons", filter: "url(#glow)" });
+    const polys = {};
+    for (const k of KEYS) {
+      polys[k] = svgEl("polygon", { points: SEG[k] });
+      offs.appendChild(polys[k]);
+    }
+    svg.append(offs, ons);
+    el.appendChild(svg);
+    return { el, polys, offs, ons, lit: new Set(), glyph: null };
+  }
+  function setGlyph(cell, ch) {
+    if (cell.glyph === ch) return;
+    cell.glyph = ch;
+    const want = new Set(GLYPH[ch] || []);
+    for (const k of KEYS) {
+      const on = want.has(k);
+      if (on === cell.lit.has(k)) continue;
+      (on ? cell.ons : cell.offs).appendChild(cell.polys[k]);
+    }
+    cell.lit = want;
+  }
+
+  const makeRow = (id) => {
+    const grid = $(id), cells = [];
+    for (let i = 0; i < 5; i++) { const c = createCell(); cells.push(c); grid.appendChild(c.el); }
+    return cells;
+  };
+  const hoursCells = makeRow("hoursGrid");
+  const minsCells = makeRow("minsGrid");
+
+  // Alinhado à direita em 5 posições (a vazia fica à esquerda, como no original)
+  function renderRow(cells, text) {
+    const chars = [...text], offset = cells.length - chars.length;
+    cells.forEach((cell, i) => {
+      let ch = chars[i - offset];
+      if (ch === "/" && S.div === ":") ch = ":";
+      setGlyph(cell, ch === undefined ? " " : ch);
+    });
+  }
+
+  /* ---------- Relógio ---------- */
+  const face = $("face");
+  let shownKey = "", hoursText = "", minsText = "", timer = 0;
+
+  const isNight = (hour) => S.bright === "night" || (S.bright === "auto" && (hour >= 22 || hour < 7));
+  const render = () => { renderRow(hoursCells, hoursText); renderRow(minsCells, minsText); };
+
+  function update() {
+    const now = new Date();
+    const H = now.getHours(), M = now.getMinutes();
+    document.body.classList.toggle("night", isNight(H));
+
+    const periodMs = S.level === 0 ? 60000 : 60000 / S.speed;     // 60 s dividido em partes inteiras
+    const slot = Math.floor((now.getSeconds() * 1000 + now.getMilliseconds()) / periodMs);
+    const key = `${H}|${M}|${slot}|${S.level}|${S.h24}`;
+    if (key === shownKey) return;
+    shownKey = key;
+
+    const hv = S.h24 ? H : (H % 12 || 12);
+    if (S.level === 0) { hoursText = String(hv); minsText = String(M).padStart(2, "0"); }
+    else { hoursText = generate(S.level, hv, hoursText); minsText = generate(S.level, M, minsText); }
+    render();
+    face.setAttribute("aria-label", `Albert Clock: ${String(hv).padStart(2, "0")}:${String(M).padStart(2, "0")}`);
+  }
+
+  // Acorda só quando a conta precisa mudar (e não 2 vezes por segundo)
+  function schedule() {
+    clearTimeout(timer);
+    const periodMs = S.level === 0 ? 60000 : 60000 / S.speed;
+    const now = new Date();
+    const into = now.getSeconds() * 1000 + now.getMilliseconds();
+    timer = setTimeout(tick, periodMs - (into % periodMs) + 20);
+  }
+  function tick() { update(); schedule(); }
+
+  /* ---------- Cor ---------- */
+  function applyFinish() {
+    const f = FINISHES[S.finish], root = document.documentElement;
+    root.style.setProperty("--f1", f.f1);
+    root.style.setProperty("--f2", f.f2);
+    root.style.setProperty("--tex", f.amount);
+    root.dataset.tex = f.tex;
+  }
+
+  /* ---------- Painel de ajustes ---------- */
+  // Resumo de uma linha do nível escolhido, montado a partir da própria tabela LEVELS
+  function levelSummary(level) {
+    if (level === 0) return "Hora normal, sem contas";
+    const cfg = LEVELS[level];
+    const sym = { "+": "+", "-": "−", "x": "×", "/": S.div };
+    const ops = [...cfg.ops].map((o) => sym[o]).join(" ");
+    const numbers = cfg.terms === 2 ? `números até ${cfg.base}` : "algarismos de 0 a 9";
+    return `${cfg.terms} termos · ${ops} · ${numbers}`;
+  }
+  const RULES = [
+    "O resultado é sempre exato: a hora ou os minutos.",
+    "Multiplicação e divisão são feitas antes de soma e subtração.",
+    "A divisão só aparece quando dá um número inteiro.",
+    "Cada conta cabe nas 5 posições do display.",
+    "Nos níveis 4 a 6, horários altos (como 41 ou 59 minutos) podem usar uma conta de 2 termos.",
+    "Velocidade não muda a dificuldade, só quantas contas novas aparecem por minuto."
+  ];
+  function makeRules() {
+    const d = document.createElement("details"); d.className = "rules";
+    const sm = document.createElement("summary"); sm.textContent = "Ver regras";
+    const ul = document.createElement("ul");
+    RULES.forEach((t) => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+    d.append(sm, ul);
+    return d;
+  }
+
+  const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => [a + i, String(a + i)]);
+  const FIELDS = [
+    { key: "level", label: "Nível", stepper: true, opts: range(0, 6), fmt: (v) => String(v), hint: () => levelSummary(S.level) },
+    { key: "speed", label: "Velocidade", stepper: true, opts: range(1, 6), fmt: (v) => `${60 / v}s`,
+      hint: () => `${S.speed} ${S.speed === 1 ? "conta nova" : "contas novas"} por minuto` },
+    { key: "h24", label: "Formato da hora", opts: [[true, "24 h"], [false, "12 h"]] },
+    { key: "div", label: "Símbolo de divisão", opts: [["/", "/"], [":", ":"]] },
+    { key: "bright", label: "Brilho", opts: [["auto", "Auto"], ["day", "Dia"], ["night", "Noite"]],
+      hint: () => (S.bright === "auto" ? "Noite automática das 22h às 7h" : "") },
+    { key: "finish", label: "Cor", cols2: true, opts: FINISHES.map((f, i) => [i, f.name]) }
+  ];
+
+  const fieldsEl = $("fields");
+  const stepBtn = (fi, dir, text, aria) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "stepbtn"; b.textContent = text;
+    b.dataset.field = fi; b.dataset.dir = dir; b.setAttribute("aria-label", aria);
+    return b;
+  };
+  const sep = () => { const d = document.createElement("div"); d.className = "stepsep"; return d; };
+
+  const fieldRefs = FIELDS.map((f, fi) => {
+    const wrap = document.createElement("div"); wrap.className = f.stepper ? "field stepfield" : "field";
+    const label = document.createElement("div"); label.className = f.stepper ? "label steplabel" : "label"; label.textContent = f.label;
+    const hint = document.createElement("div"); hint.className = "hint";
+    const ref = { hint };
+    if (f.stepper) {
+      const row = document.createElement("div"); row.className = "steprow";
+      const box = document.createElement("div"); box.className = "stepper";
+      ref.minus = stepBtn(fi, -1, "\u2212", `Diminuir ${f.label.toLowerCase()}`);
+      ref.plus = stepBtn(fi, 1, "+", `Aumentar ${f.label.toLowerCase()}`);
+      ref.value = document.createElement("div"); ref.value.className = "stepval"; ref.value.setAttribute("aria-live", "polite");
+      box.append(ref.minus, sep(), ref.value, sep(), ref.plus);
+      row.append(label, box);
+      wrap.append(row, hint);
+    } else {
+      const box = document.createElement("div"); box.className = f.cols2 ? "opts cols2" : "opts";
+      ref.buttons = f.opts.map(([, text], oi) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "opt"; b.textContent = text;
+        b.dataset.field = fi; b.dataset.opt = oi;
+        box.appendChild(b);
+        return b;
+      });
+      wrap.append(label, hint, box);
+    }
+    if (f.key === "level") wrap.appendChild(makeRules());
+    fieldsEl.appendChild(wrap);
+    return ref;
+  });
+
+  function refreshFields() {
+    FIELDS.forEach((f, fi) => {
+      const ref = fieldRefs[fi];
+      ref.hint.textContent = f.hint ? f.hint() : "";
+      if (f.stepper) {
+        const lo = f.opts[0][0], hi = f.opts[f.opts.length - 1][0];
+        ref.value.textContent = f.fmt(S[f.key]);
+        ref.minus.disabled = S[f.key] <= lo;
+        ref.plus.disabled = S[f.key] >= hi;
+      } else {
+        ref.buttons.forEach((b, oi) => b.setAttribute("aria-pressed", String(S[f.key] === f.opts[oi][0])));
+      }
+    });
+  }
+
+  function setValue(f, value) {
+    if (S[f.key] === value) return;
+    S[f.key] = value;
+    saveSettings();
+    if (f.key === "finish") applyFinish();
+    if (f.key === "div") render();                  // só troca o desenho, mantém a mesma conta
+    else { shownKey = ""; tick(); }                 // refaz as contas e reagenda
+    refreshFields();
+  }
+
+  // Um único ouvinte para todos os controles do painel
+  fieldsEl.addEventListener("click", (e) => {
+    const step = e.target.closest("button.stepbtn");
+    if (step) {
+      const f = FIELDS[step.dataset.field];
+      const lo = f.opts[0][0], hi = f.opts[f.opts.length - 1][0];
+      setValue(f, Math.min(hi, Math.max(lo, S[f.key] + Number(step.dataset.dir))));
+      return;
+    }
+    const btn = e.target.closest("button.opt");
+    if (!btn) return;
+    const f = FIELDS[btn.dataset.field];
+    setValue(f, f.opts[btn.dataset.opt][0]);
+  });
+
+  const sheet = $("sheet");
+  function openSheet() { refreshFields(); sheet.classList.add("open"); revealUI(); $("closeBtn").focus({ preventScroll: true }); }
+  function closeSheet() { sheet.classList.remove("open"); revealUI(); }
+  $("settingsBtn").addEventListener("click", openSheet);
+  $("closeBtn").addEventListener("click", closeSheet);
+  sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sheet.classList.contains("open")) closeSheet(); });
+
+  /* ---------- Controles que somem sozinhos ---------- */
+  let uiTimer = 0;
+  function revealUI() {
+    document.body.classList.add("show-ui");
+    clearTimeout(uiTimer);
+    uiTimer = setTimeout(() => {
+      if (!sheet.classList.contains("open")) document.body.classList.remove("show-ui");
+    }, 4000);
+  }
+
+  /* ---------- Manter a tela acesa ---------- */
+  const lockLabel = $("lockLabel");
+  let wakeLock = null, wakePending = false;
+  async function requestWake() {
+    if (!("wakeLock" in navigator) || wakePending || (wakeLock && !wakeLock.released)) return;
+    wakePending = true;
+    try {
+      const lock = await navigator.wakeLock.request("screen");
+      wakeLock = lock;
+      lockLabel.hidden = false;
+      lock.addEventListener("release", () => { if (wakeLock === lock) lockLabel.hidden = true; }, { once: true });
+    } catch {
+      lockLabel.hidden = true;
+    } finally {
+      wakePending = false;
+    }
+  }
+
+  const resume = () => { if (document.visibilityState === "visible") { requestWake(); tick(); } };
+  document.addEventListener("visibilitychange", resume);
+  window.addEventListener("pageshow", resume);
+  document.addEventListener("pointerdown", () => { revealUI(); requestWake(); }, { passive: true });
+
+  /* ---------- Início ---------- */
+  applyFinish();
+  tick();
+  requestWake();
+  revealUI();
+})();
+</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});}</script>
+</body>
+</html>
