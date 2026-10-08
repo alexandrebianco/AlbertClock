@@ -1,5 +1,8 @@
 # Histórico de versões
 
+## 1.3.0 — 08/10/2026
+- Atualização automática: o app busca a versão nova ao abrir e recarrega sozinho, sem precisar apagar e reinstalar.
+
 ## 1.2.0 — 08/10/2026
 - Toque no relógio mostra a hora normal (HH:MM) por 5 segundos e volta para a conta. Respeita 12/24 h; no nível 0 não muda nada.
 

@@ -204,7 +204,7 @@
     <div class="card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
       <div class="head"><span id="sheetTitle">Ajustes</span><button class="btn" id="closeBtn" type="button">Fechar</button></div>
       <div id="fields"></div>
-      <div class="ver" id="ver">Albert Clock v1.2.0 · 08/10/2026</div>
+      <div class="ver" id="ver">Albert Clock v1.3.0 · 08/10/2026</div>
     </div>
   </div>
 
@@ -702,6 +702,24 @@
   revealUI();
 })();
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});}</script>
+<script>
+if ("serviceWorker" in navigator) {
+  // Atualização automática: busca versão nova ao abrir/voltar ao app e recarrega uma vez quando ela assume
+  let hasController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hasController) { hasController = true; return; }   // primeira instalação: não recarrega
+    if (reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((reg) => {
+      const check = () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); };
+      document.addEventListener("visibilitychange", check);
+    }).catch(() => {});
+  });
+}
+</script>
 </body>
 </html>
